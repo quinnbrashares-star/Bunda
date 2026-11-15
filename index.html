@@ -1,0 +1,1341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QB Scoring</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --ink: #0A0A0A; --paper: #FFFFFF; --muted: #F1F1EC; --muted2: #E4E4DD; --dim: #55554F;
+    --gain: #1E8E4F; --loss: #E5484D; --red: #E5484D;
+    --ott: #5B8CFF; --app: #FF9F43; --arg: #B79CFF; --putt: #3DDBB6;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); }
+  #sgapp { background: var(--paper); color: var(--ink); font-family: 'Archivo', system-ui, sans-serif; padding: 20px 16px 64px; max-width: 560px; margin: 0 auto; -webkit-font-smoothing: antialiased; }
+  #sgapp button { font-family: inherit; cursor: pointer; }
+  #sgapp button:focus-visible, #sgapp input:focus-visible, #sgapp select:focus-visible, #sgapp textarea:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  .mono, .eyebrow, .range, .sub, .idx, .notice, .rd-m, .legend { font-family: 'IBM Plex Mono', monospace; }
+
+  .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+  .brand { font-size: 20px; font-weight: 900; letter-spacing: -0.02em; text-transform: uppercase; }
+  .idx { font-size: 12px; font-weight: 600; border: 2px solid var(--ink); border-radius: 999px; padding: 6px 12px; }
+  .notice { background: var(--ink); color: #fff; font-size: 12px; line-height: 1.5; padding: 12px 14px; border-radius: 16px; margin-bottom: 16px; }
+
+  /* average sections */
+  .sec { display: flex; flex-direction: column; gap: 14px; padding-bottom: 24px; margin-bottom: 24px; border-bottom: 3px solid var(--ink); }
+  .sec-hd { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .tag { font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; background: var(--ink); color: #fff; border-radius: 999px; padding: 7px 14px; }
+  .range { font-size: 12px; font-weight: 600; }
+  .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+  .big { font-size: 112px; font-weight: 900; letter-spacing: -0.06em; line-height: 0.85; margin-top: 6px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+  .chip { font-size: 13px; font-weight: 800; border-radius: 999px; padding: 7px 12px; background: var(--muted); }
+  .sg-hd { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 4px; }
+  .h2 { font-size: 20px; font-weight: 900; letter-spacing: -0.02em; }
+  .sub { font-size: 12px; font-weight: 600; margin-top: 2px; }
+  .seg { display: flex; border: 2px solid var(--ink); border-radius: 999px; padding: 2px; flex: none; }
+  .seg button { height: 36px; padding: 0 12px; border: 0; border-radius: 999px; font-size: 13px; font-weight: 800; background: transparent; color: var(--ink); transition: background .2s, color .2s; }
+  .seg button.on { background: var(--ink); color: #fff; }
+  .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .tile { min-height: 118px; border-radius: 22px; padding: 12px 14px; display: flex; flex-direction: column; justify-content: space-between; color: var(--ink); }
+  .t-hd { display: flex; justify-content: space-between; align-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; }
+  .t-v { font-size: 40px; font-weight: 900; letter-spacing: -0.04em; line-height: 0.95; }
+  .t-n { font-size: 13px; font-weight: 700; margin-top: 3px; }
+  .strip { background: var(--ink); color: #fff; border-radius: 22px; padding: 16px 18px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 16px; column-gap: 10px; }
+  .strip .k { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 500; color: #C9C9C2; text-transform: uppercase; letter-spacing: 0.06em; }
+  .strip .v { font-size: 26px; font-weight: 900; letter-spacing: -0.03em; margin-top: 2px; }
+
+  /* round log */
+  .list-hd { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+  .legend { display: flex; gap: 10px; font-size: 11px; font-weight: 600; }
+  .legend span { display: flex; align-items: center; gap: 4px; }
+  .legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+  .rd { border-bottom: 2px solid var(--ink); }
+  .rd-row { width: 100%; border: 0; background: transparent; color: var(--ink); padding: 12px 4px; display: flex; align-items: center; gap: 12px; text-align: left; transition: background .15s; }
+  .rd-row:hover { background: #F7F7F4; }
+  .sbox { width: 54px; height: 54px; flex: none; border-radius: 16px; border: 2px solid var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .sbox b { font-size: 22px; font-weight: 900; line-height: 1; }
+  .sbox span { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; }
+  .rd-main { flex: 1; min-width: 0; }
+  .rd-c { font-size: 16px; font-weight: 800; }
+  .rd-m { font-size: 11px; font-weight: 500; margin-top: 3px; }
+  .mini { display: flex; gap: 4px; flex: none; }
+  .mc { display: flex; flex-direction: column; align-items: center; gap: 3px; font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 600; }
+  .mt { width: 9px; height: 40px; position: relative; background: var(--muted); border-radius: 3px; }
+  .mt::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: #B5B5AD; }
+  .mb { position: absolute; left: 0; right: 0; border-radius: 3px; }
+  .chev { flex: none; transition: transform .2s; }
+  .rd.open .chev { transform: rotate(180deg); }
+  .rd-x { padding: 2px 4px 18px; display: flex; flex-direction: column; gap: 12px; }
+  .ctiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .ct { border-radius: 12px; border: 2px solid var(--ink); padding: 8px 6px; text-align: center; }
+  .ct .a { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; }
+  .ct .v { font-size: 17px; font-weight: 900; }
+  .line { font-size: 12px; font-weight: 600; line-height: 1.5; }
+  .blk { border: 2px solid var(--ink); border-radius: 18px; padding: 12px 14px; }
+  .blk-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .blk-h b { font-size: 15px; font-weight: 900; }
+  .blk-h span { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); }
+  .g3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 8px; }
+  .g2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 8px; }
+  .g3 .k, .g2 .k { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dim); }
+  .g3 .v, .g2 .v { font-size: 19px; font-weight: 900; margin-top: 1px; }
+  .g3 .s, .g2 .s { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--dim); margin-top: 1px; }
+  table.tt { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tt th { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; text-align: right; color: var(--dim); padding: 0 0 6px; }
+  .tt th:first-child, .tt td:first-child { text-align: left; }
+  .tt td { padding: 7px 0; border-top: 1px solid var(--muted2); text-align: right; font-weight: 700; }
+  .miss { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 700; padding: 7px 0; border-top: 1px solid var(--muted2); }
+  .gain { color: #146B3A; } .loss { color: #B42328; }
+  .acts { display: flex; gap: 10px; flex-wrap: wrap; }
+  .lbtn { height: 44px; padding: 0 16px; border-radius: 999px; border: 2px solid var(--ink); background: transparent; color: var(--ink); font-size: 13px; font-weight: 800; }
+  .lbtn:hover { background: var(--muted); }
+  .lbtn.danger:hover, .lbtn.armed { background: var(--loss); border-color: var(--loss); color: #fff; }
+  .cta-wrap { position: sticky; bottom: 12px; z-index: 5; padding-top: 6px; }
+
+  /* shared */
+  .btn { width: 100%; min-height: 58px; border: 0; border-radius: 20px; background: var(--ink); color: #fff; font-size: 17px; font-weight: 900; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; padding: 0 22px; }
+  .btn.gold { justify-content: space-between; box-shadow: 0 8px 24px rgba(10,10,10,0.18); }
+  .btn.ghost { background: transparent; color: var(--ink); border: 2px solid var(--ink); font-weight: 800; font-size: 15px; min-height: 52px; }
+  .btn.ghost:hover { background: var(--muted); }
+  .btn.holed { background: var(--putt); color: var(--ink); border: 2px solid var(--ink); }
+  .panel { border: 2px solid var(--ink); border-radius: 22px; padding: 16px; margin-bottom: 16px; }
+  .panel > .eyebrow { display: block; margin-bottom: 12px; }
+  .empty { font-size: 14px; color: var(--dim); line-height: 1.6; }
+  .note { font-size: 12px; color: var(--dim); line-height: 1.55; margin-top: 10px; }
+  #dataBox { width: 100%; min-height: 80px; background: var(--muted); border: 2px solid var(--ink); border-radius: 14px; color: var(--ink); padding: 10px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+
+  /* round builder */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field.wide { grid-column: 1 / -1; }
+  .field label { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+  .field input, .field select { width: 100%; height: 46px; background: var(--muted); border: 2px solid transparent; border-radius: 12px; color: var(--ink); padding: 0 12px; font-family: 'IBM Plex Mono', monospace; font-size: 16px; }
+  .field input:focus, .field select:focus { border-color: var(--ink); background: #fff; outline: none; }
+  .holebar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
+  .holebar .nav { width: 48px; height: 48px; border-radius: 16px; border: 2px solid var(--ink); background: #fff; color: var(--ink); font-size: 22px; font-weight: 900; }
+  .holebar .nav:disabled { opacity: .3; cursor: default; }
+  .holenum { text-align: center; flex: 1; }
+  .holenum .n { font-size: 40px; font-weight: 900; line-height: 1; letter-spacing: -0.03em; }
+  .holenum .l { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+  .shot { border-radius: 16px; padding: 12px; margin-bottom: 10px; background: var(--muted); }
+  .shot .field input, .shot .field select { background: #fff; }
+  .shot-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .shot-n { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+  .shot-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 8px; }
+  .link-btn { background: none; border: 0; padding: 6px 0; color: var(--ink); font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; text-decoration: underline; }
+  .link-btn.danger:hover { color: #B42328; }
+  .pen-toggle { display: block; width: 100%; margin-top: 8px; min-height: 44px; padding: 10px; background: #fff; color: var(--ink); border: 2px dashed #B5B5AD; border-radius: 12px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; -webkit-tap-highlight-color: transparent; transition: background .12s, color .12s; }
+  .pen-toggle.on { border: 2px solid var(--ink); background: var(--ink); color: #fff; }
+  .live { border-top: 2px solid var(--ink); margin-top: 14px; padding-top: 12px; }
+  .live-row { display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 13px; padding: 4px 0; }
+  .live-row span:last-child { font-weight: 600; }
+  .hole-scores { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 12px; }
+  .hs { font-family: 'IBM Plex Mono', monospace; font-size: 11px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--muted2); border-radius: 10px; cursor: pointer; }
+  .hs.done { border-color: var(--ink); font-weight: 600; }
+  .hs.cur { background: var(--ink); color: #fff; border-color: var(--ink); }
+  @media (max-width: 360px) { .big { font-size: 92px; } .t-v { font-size: 34px; } }
+  @media (prefers-reduced-motion: reduce) { #sgapp * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div id="sgapp">
+  <div class="top">
+    <div class="brand">QB Scoring</div>
+    <div class="idx" id="idxPill" style="display:none"></div>
+  </div>
+
+  <div id="notice" class="notice" style="display:none" role="status"></div>
+
+  <div id="loading" class="panel"><span class="empty">Loading your rounds…</span></div>
+
+  <!-- ============ DASHBOARD ============ -->
+  <div id="dash" style="display:none">
+    <div class="dash-main">
+      <div id="sections"></div>
+
+      <div class="list-hd">
+        <div class="h2">Round log</div>
+        <div class="legend"><span><i style="background:var(--gain)"></i>gained</span><span><i style="background:var(--loss)"></i>lost</span></div>
+      </div>
+      <div id="roundList"></div>
+
+      <div class="cta-wrap">
+        <button class="btn gold" id="newRoundBtn">Log a round
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:32px">
+      <span class="eyebrow">Backup &amp; restore</span>
+      <p class="note" style="margin-top:0">Your rounds live in this app's storage, which doesn't travel inside the downloaded file. Your rounds are saved in this browser on this device only — clearing browser data erases them. Use <b>Export</b> to copy all your data as text and keep it somewhere safe. Use <b>Restore</b> to paste that text back in, or to move your rounds to another device.</p>
+      <textarea id="dataBox" style="display:none" autocomplete="off" spellcheck="false" aria-label="Backup data"></textarea>
+      <div class="acts" style="margin-top:10px">
+        <button class="lbtn" id="exportBtn">Export data</button>
+        <button class="lbtn" id="importBtn">Restore from text</button>
+      </div>
+    </div>
+    <button class="btn ghost" id="resetBtn">Clear all rounds</button>
+  </div>
+
+  <!-- ============ BUILDER ============ -->
+  <div id="builder" style="display:none">
+    <div class="h2" style="font-size:28px;margin-bottom:16px">Log a round</div>
+    <div class="panel">
+      <span class="eyebrow">Round details</span>
+      <div class="form-grid">
+        <div class="field wide"><label for="b_courseSel">Course</label><select id="b_courseSel"></select></div>
+        <div class="field wide" id="newCourseWrap" style="display:none"><label for="b_course">New course name</label><input id="b_course" placeholder="Course name"></div>
+        <div class="field"><label for="b_date">Date</label><input id="b_date" type="date"></div>
+        <div class="field"><label for="b_tee">Tee</label><input id="b_tee"></div>
+        <div class="field"><label for="b_slope">Slope</label><input id="b_slope" type="text" inputmode="numeric"></div>
+        <div class="field"><label for="b_rating">Rating</label><input id="b_rating" type="text" step="0.1" inputmode="decimal"></div>
+        <div class="field"><label for="b_hcp">Handicap index</label><input id="b_hcp" type="text" step="0.1" inputmode="decimal"></div>
+        <div class="field"><label for="b_holes">Holes</label><input id="b_holes" type="text" inputmode="numeric" value="18"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="holebar">
+        <button class="nav" id="prevHole" aria-label="Previous hole">‹</button>
+        <div class="holenum"><div class="n" id="holeN">1</div><div class="l">Hole</div></div>
+        <button class="nav" id="nextHole" aria-label="Next hole">›</button>
+      </div>
+
+      <div class="form-grid" style="margin-bottom:14px">
+        <div class="field"><label for="h_par">Par</label>
+          <select id="h_par"><option>3</option><option selected>4</option><option>5</option><option>6</option></select>
+        </div>
+        <div class="field"><label for="h_yards">Yardage</label><input id="h_yards" type="text" inputmode="numeric"></div>
+      </div>
+
+      <span class="eyebrow" style="display:block;margin-bottom:8px">Where the ball sat before each shot</span>
+      <div id="shotList"></div>
+      <button class="btn ghost" id="addShot">Add a shot</button>
+      <button class="btn holed" id="holedBtn">Holed · next hole</button>
+
+      <div class="live">
+        <div class="live-row"><span>Hole score</span><span id="liveScore">—</span></div>
+        <div class="live-row"><span>Strokes gained, this hole</span><span id="liveSG">—</span></div>
+        <div class="live-row"><span>Round so far</span><span id="liveTotal">—</span></div>
+      </div>
+
+      <div class="hole-scores" id="holeScores"></div>
+      <div class="note">Enter the lie and distance <em>before</em> each shot. The last row is the putt or chip that went in — tap <b>Holed</b> and you're on the next tee. On par 4 and 5 tee shots, mark "not driver" if you hit a 3-wood or iron, and "skip distance" if the ball hit something or went into a hazard. Either one leaves the shot out of your average drive.</div>
+    </div>
+
+    <button class="btn" id="saveRound">Save round</button>
+    <button class="btn ghost" id="cancelRound">Back without saving</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  /* On a normal website there is no window.storage (that API only exists inside Claude),
+     so back it with the browser's localStorage. get() rejects when nothing is saved yet,
+     which the loader treats as "first visit". */
+  if (!window.storage || typeof window.storage.get !== 'function' || typeof window.storage.set !== 'function') {
+    window.storage = {
+      get: function (k) {
+        return new Promise(function (res, rej) {
+          try { var v = window.localStorage.getItem(k); if (v === null) rej(new Error('not found')); else res({ key: k, value: v }); }
+          catch (e) { rej(e); }
+        });
+      },
+      set: function (k, v) {
+        return new Promise(function (res, rej) {
+          try { window.localStorage.setItem(k, v); res({ key: k, value: v }); } catch (e) { rej(e); }
+        });
+      }
+    };
+  }
+  var KEY = 'sg_rounds_v2', CKEY = 'sg_courses_v1';
+  var rounds = [], courses = [], baseline = 'scratch';
+
+  /* ============ COURSE LIBRARY ============ */
+  var COURSE_SEED = [{
+    id: 'poplar-black',
+    name: 'Poplar Creek Golf Course',
+    tee: 'Black',
+    slope: 115,
+    rating: 69.7,
+    holes: [
+      { par:5, yards:519 }, { par:4, yards:421 }, { par:3, yards:188 },
+      { par:4, yards:403 }, { par:3, yards:172 }, { par:4, yards:330 },
+      { par:3, yards:200 }, { par:4, yards:292 }, { par:5, yards:471 },
+      { par:4, yards:455 }, { par:4, yards:321 }, { par:3, yards:210 },
+      { par:4, yards:407 }, { par:5, yards:537 }, { par:3, yards:158 },
+      { par:5, yards:475 }, { par:3, yards:136 }, { par:4, yards:382 }
+    ]
+  }, {
+    id: 'monarch-lema-gold',
+    name: 'Monarch Bay (Tony Lema)',
+    tee: 'Gold',
+    slope: null,
+    rating: null,
+    holes: [
+      { par:4, yards:403 }, { par:4, yards:385 }, { par:4, yards:402 },
+      { par:3, yards:173 }, { par:5, yards:507 }, { par:4, yards:389 },
+      { par:3, yards:207 }, { par:4, yards:354 }, { par:4, yards:405 },
+      { par:3, yards:139 }, { par:4, yards:369 }, { par:5, yards:546 },
+      { par:4, yards:468 }, { par:4, yards:293 }, { par:4, yards:388 },
+      { par:5, yards:556 }, { par:3, yards:190 }, { par:4, yards:393 }
+    ]
+  }, {
+    id: 'tilden-blue',
+    name: 'Tilden Park Golf Course',
+    tee: 'Blue',
+    slope: 130,
+    rating: 71.6,
+    holes: [
+      { par:4, yards:411 }, { par:4, yards:399 }, { par:4, yards:464 },
+      { par:3, yards:143 }, { par:4, yards:366 }, { par:4, yards:316 },
+      { par:3, yards:221 }, { par:5, yards:475 }, { par:4, yards:334 },
+      { par:4, yards:395 }, { par:3, yards:234 }, { par:4, yards:350 },
+      { par:5, yards:504 }, { par:4, yards:352 }, { par:4, yards:329 },
+      { par:3, yards:206 }, { par:4, yards:395 }, { par:4, yards:400 }
+    ]
+  }, {
+    id: 'bridges-blue',
+    name: 'Bridges Golf Course',
+    tee: 'Blue',
+    slope: 140,
+    rating: 72.9,
+    holes: [
+      { par:4, yards:373 }, { par:4, yards:434 }, { par:4, yards:339 },
+      { par:5, yards:502 }, { par:3, yards:183 }, { par:4, yards:346 },
+      { par:4, yards:330 }, { par:5, yards:543 }, { par:4, yards:362 },
+      { par:4, yards:287 }, { par:3, yards:213 }, { par:4, yards:378 },
+      { par:3, yards:130 }, { par:4, yards:388 }, { par:5, yards:539 },
+      { par:4, yards:447 }, { par:3, yards:220 }, { par:5, yards:547 }
+    ]
+  }, {
+    id: 'metro-black',
+    name: 'Metropolitan Golf Links',
+    tee: 'Black',
+    slope: 129,
+    rating: 73.5,
+    holes: [
+      { par:4, yards:366 }, { par:4, yards:397 }, { par:5, yards:523 },
+      { par:4, yards:469 }, { par:3, yards:191 }, { par:5, yards:503 },
+      { par:3, yards:169 }, { par:4, yards:411 }, { par:4, yards:421 },
+      { par:5, yards:569 }, { par:4, yards:437 }, { par:3, yards:160 },
+      { par:4, yards:389 }, { par:4, yards:428 }, { par:3, yards:190 },
+      { par:4, yards:371 }, { par:5, yards:552 }, { par:4, yards:413 }
+    ]
+  }, {
+    id: 'metro-blue',
+    name: 'Metropolitan Golf Links',
+    tee: 'Blue',
+    slope: 125,
+    rating: 71.7,
+    holes: [
+      { par:4, yards:342 }, { par:4, yards:374 }, { par:5, yards:498 },
+      { par:4, yards:446 }, { par:3, yards:166 }, { par:5, yards:482 },
+      { par:3, yards:144 }, { par:4, yards:389 }, { par:4, yards:406 },
+      { par:5, yards:538 }, { par:4, yards:413 }, { par:3, yards:141 },
+      { par:4, yards:361 }, { par:4, yards:400 }, { par:3, yards:165 },
+      { par:4, yards:353 }, { par:5, yards:525 }, { par:4, yards:386 }
+    ]
+  }, {
+    id: 'metro-black-front9',
+    name: 'Metropolitan Golf Links (Front 9)',
+    tee: 'Black',
+    slope: 129,
+    rating: 73.5,
+    holes: [
+      { par:4, yards:366 }, { par:4, yards:397 }, { par:5, yards:523 },
+      { par:4, yards:469 }, { par:3, yards:191 }, { par:5, yards:503 },
+      { par:3, yards:169 }, { par:4, yards:411 }, { par:4, yards:421 }
+    ]
+  }, {
+    id: 'sanramon-blue',
+    name: 'San Ramon Golf Course',
+    tee: 'Blue',
+    slope: 129,
+    rating: 71.3,
+    holes: [
+      { par:4, yards:341 }, { par:3, yards:202 }, { par:4, yards:293 },
+      { par:4, yards:426 }, { par:4, yards:338 }, { par:5, yards:528 },
+      { par:3, yards:218 }, { par:5, yards:503 }, { par:4, yards:339 },
+      { par:4, yards:346 }, { par:4, yards:383 }, { par:4, yards:368 },
+      { par:5, yards:522 }, { par:3, yards:183 }, { par:5, yards:502 },
+      { par:4, yards:415 }, { par:3, yards:167 }, { par:4, yards:385 }
+    ]
+  }, {
+    id: 'bcc-black',
+    name: 'Berkeley Country Club',
+    tee: 'Black',
+    slope: 135,
+    rating: 72.8,
+    holes: [
+      { par:4, yards:371 }, { par:3, yards:143 }, { par:4, yards:407 },
+      { par:4, yards:328 }, { par:4, yards:412 }, { par:4, yards:434 },
+      { par:4, yards:249 }, { par:5, yards:499 }, { par:4, yards:364 },
+      { par:5, yards:542 }, { par:4, yards:330 }, { par:3, yards:197 },
+      { par:4, yards:425 }, { par:4, yards:422 }, { par:4, yards:354 },
+      { par:5, yards:482 }, { par:3, yards:177 }, { par:4, yards:344 }
+    ]
+  }, {
+    id: 'bcc-black-front9',
+    name: 'Berkeley Country Club (Front 9)',
+    tee: 'Black',
+    slope: 135,
+    rating: 72.8,
+    holes: [
+      { par:4, yards:371 }, { par:3, yards:143 }, { par:4, yards:407 },
+      { par:4, yards:328 }, { par:4, yards:412 }, { par:4, yards:434 },
+      { par:4, yards:249 }, { par:5, yards:499 }, { par:4, yards:364 }
+    ]
+  }, {
+    id: 'fleming-blue',
+    name: 'Fleming 9',
+    tee: 'Blue',
+    slope: 97,
+    rating: 30.7,
+    holes: [
+      { par:4, yards:405 }, { par:3, yards:140 }, { par:3, yards:195 },
+      { par:3, yards:140 }, { par:3, yards:235 }, { par:3, yards:200 },
+      { par:4, yards:425 }, { par:4, yards:260 }, { par:3, yards:165 }
+    ]
+  }, {
+    id: 'peacock-blue',
+    name: 'Peacock Gap Golf Club',
+    tee: 'Blue',
+    slope: 122,
+    rating: 69.0,
+    holes: [
+      { par:4, yards:404 }, { par:4, yards:393 }, { par:3, yards:170 },
+      { par:5, yards:505 }, { par:4, yards:381 }, { par:3, yards:171 },
+      { par:4, yards:287 }, { par:5, yards:472 }, { par:4, yards:355 },
+      { par:3, yards:131 }, { par:4, yards:386 }, { par:5, yards:520 },
+      { par:3, yards:190 }, { par:5, yards:484 }, { par:4, yards:356 },
+      { par:3, yards:155 }, { par:4, yards:320 }, { par:4, yards:406 }
+    ]
+  }, {
+    id: 'peacock-white',
+    name: 'Peacock Gap Golf Club',
+    tee: 'White',
+    slope: 117,
+    rating: 67.2,
+    holes: [
+      { par:4, yards:376 }, { par:4, yards:365 }, { par:3, yards:155 },
+      { par:5, yards:468 }, { par:4, yards:360 }, { par:3, yards:148 },
+      { par:4, yards:244 }, { par:5, yards:462 }, { par:4, yards:335 },
+      { par:3, yards:122 }, { par:4, yards:373 }, { par:5, yards:470 },
+      { par:3, yards:173 }, { par:5, yards:464 }, { par:4, yards:323 },
+      { par:3, yards:129 }, { par:4, yards:300 }, { par:4, yards:406 }
+    ]
+  }, {
+    id: 'lakechabot-blue',
+    name: 'Lake Chabot Golf Course',
+    tee: 'Blue',
+    slope: 119,
+    rating: 68.9,
+    holes: [
+      { par:4, yards:374 }, { par:3, yards:151 }, { par:5, yards:464 },
+      { par:5, yards:486 }, { par:4, yards:385 }, { par:4, yards:313 },
+      { par:3, yards:188 }, { par:5, yards:492 }, { par:3, yards:182 },
+      { par:4, yards:305 }, { par:4, yards:420 }, { par:3, yards:156 },
+      { par:4, yards:287 }, { par:4, yards:369 }, { par:4, yards:259 },
+      { par:4, yards:306 }, { par:3, yards:194 }, { par:6, yards:673 }
+    ]
+  }, {
+    id: 'corica-north-blue',
+    name: 'Corica Park North Course',
+    tee: 'Blue',
+    slope: 117,
+    rating: 69.1,
+    holes: [
+      { par:4, yards:343 }, { par:5, yards:485 }, { par:4, yards:366 },
+      { par:3, yards:150 }, { par:5, yards:479 }, { par:3, yards:141 },
+      { par:4, yards:401 }, { par:4, yards:243 }, { par:4, yards:363 },
+      { par:4, yards:401 }, { par:4, yards:431 }, { par:4, yards:333 },
+      { par:3, yards:153 }, { par:5, yards:497 }, { par:4, yards:295 },
+      { par:5, yards:494 }, { par:3, yards:171 }, { par:4, yards:341 }
+    ]
+  }, {
+    id: 'bluerock-west-blue',
+    name: 'Blue Rock Springs West',
+    tee: 'Blue',
+    slope: 125,
+    rating: 69.1,
+    holes: [
+      { par:4, yards:367 }, { par:4, yards:301 }, { par:3, yards:169 },
+      { par:4, yards:314 }, { par:4, yards:336 }, { par:5, yards:518 },
+      { par:3, yards:110 }, { par:5, yards:536 }, { par:4, yards:379 },
+      { par:4, yards:336 }, { par:3, yards:164 }, { par:5, yards:484 },
+      { par:4, yards:306 }, { par:4, yards:390 }, { par:3, yards:179 },
+      { par:4, yards:349 }, { par:4, yards:376 }, { par:4, yards:400 }
+    ]
+  }];
+
+  /* ============ BROADIE EXPECTED-STROKES TABLES (PGA Tour baseline) ============ */
+  /* Source: "Every Shot Counts" by Mark Broadie, transcribed from qb's STROKES_GAINED_Shared.xlsx (REFERENCED CHARTS tab) */
+  var T = {
+    tee: [[100,2.92],[105,2.93],[110,2.95],[115,2.97],[120,2.99],[125,2.99],[130,2.97],[135,2.97],[140,2.97],[145,2.97],[150,2.99],[155,2.99],[160,2.99],[165,3.01],[170,3.02],[175,3.04],[180,3.05],[185,3.07],[190,3.09],[195,3.11],[200,3.12],[210,3.14],[220,3.17],[230,3.21],[240,3.25],[250,3.35],[260,3.45],[270,3.55],[280,3.65],[290,3.68],[300,3.71],[320,3.79],[340,3.86],[360,3.92],[380,3.96],[400,3.99],[420,4.02],[440,4.08],[460,4.17],[480,4.28],[500,4.41],[520,4.54],[540,4.65],[560,4.74],[580,4.79],[600,4.82]],
+    fairway: [[10,2.20],[15,2.30],[20,2.40],[25,2.45],[30,2.50],[35,2.55],[40,2.60],[45,2.62],[50,2.65],[55,2.67],[60,2.70],[65,2.72],[70,2.73],[75,2.74],[80,2.75],[85,2.77],[90,2.78],[95,2.79],[100,2.80],[105,2.81],[110,2.83],[115,2.84],[120,2.85],[125,2.86],[130,2.88],[135,2.90],[140,2.91],[145,2.93],[150,2.95],[155,2.97],[160,2.98],[165,3.00],[170,3.03],[175,3.06],[180,3.08],[185,3.11],[190,3.13],[195,3.16],[200,3.19],[210,3.26],[220,3.32],[230,3.39],[240,3.45],[250,3.52],[260,3.58],[270,3.63],[280,3.69],[290,3.74],[300,3.78],[320,3.84],[340,3.88],[360,3.95],[380,4.03],[400,4.11],[420,4.15],[440,4.20],[460,4.29],[480,4.40],[500,4.53],[520,4.85],[540,4.97],[560,5.05],[580,5.10],[600,5.13]],
+    rough: [[10,2.49],[15,2.54],[20,2.59],[25,2.64],[30,2.69],[35,2.74],[40,2.78],[45,2.82],[50,2.85],[55,2.88],[60,2.91],[65,2.92],[70,2.93],[75,2.95],[80,2.96],[85,2.97],[90,2.99],[95,3.01],[100,3.02],[105,3.03],[110,3.04],[115,3.06],[120,3.08],[125,3.09],[130,3.11],[135,3.13],[140,3.15],[145,3.17],[150,3.19],[155,3.21],[160,3.23],[165,3.25],[170,3.27],[175,3.29],[180,3.31],[185,3.34],[190,3.37],[195,3.40],[200,3.42],[210,3.48],[220,3.53],[230,3.80],[240,3.64],[250,3.69],[260,3.74],[270,3.78],[280,3.83],[290,3.87],[300,3.90],[320,3.95],[340,4.02],[360,4.11],[380,4.21],[400,4.30],[420,4.34],[440,4.39],[460,4.48],[480,4.59],[500,4.72]],
+    sand: [[10,2.41],[15,2.47],[20,2.53],[25,2.59],[30,2.67],[35,2.76],[40,2.82],[45,2.90],[50,2.98],[55,3.07],[60,3.15],[65,3.17],[70,3.19],[75,3.22],[80,3.24],[85,3.24],[90,3.23],[95,3.23],[100,3.23],[105,3.23],[110,3.22],[115,3.21],[120,3.21],[125,3.21],[130,3.21],[135,3.22],[140,3.22],[145,3.23],[150,3.25],[155,3.26],[160,3.28],[165,3.30],[170,3.33],[175,3.36],[180,3.40],[185,3.43],[190,3.47],[195,3.51],[200,3.55],[210,3.62],[220,3.70],[230,3.77],[240,3.84],[250,3.88],[260,3.93],[270,3.96],[280,4.00],[290,4.02],[300,4.04],[320,4.12],[340,4.26],[360,4.41],[380,4.55],[400,4.69],[420,4.73],[440,4.78],[460,4.87],[480,4.98],[500,5.11],[520,5.24],[540,5.36],[560,5.44],[580,5.49],[600,5.52]],
+    recovery: [[20,3.45],[40,3.55],[60,3.65],[80,3.72],[100,3.80],[105,3.80],[110,3.80],[115,3.80],[120,3.78],[125,3.78],[130,3.78],[135,3.78],[140,3.80],[145,3.80],[150,3.80],[155,3.80],[160,3.81],[165,3.81],[170,3.81],[175,3.81],[180,3.82],[185,3.83],[190,3.84],[195,3.86],[200,3.87],[210,3.89],[220,3.92],[230,3.95],[240,3.97],[250,4.00],[260,4.03],[270,4.07],[280,4.10],[290,4.15],[300,4.20],[320,4.31],[340,4.44],[360,4.56],[380,4.66],[400,4.75],[420,4.79],[440,4.84],[460,4.93],[480,5.04],[500,5.17],[520,5.30],[540,5.42],[560,5.50],[580,5.55],[600,5.58]],
+    fringe: [[3,1.20],[6,1.40],[9,1.60],[15,1.78],[21,1.93],[30,2.10],[45,2.30],[60,2.45],[90,2.68]]
+  };
+  /* putting: distance in FEET */
+  var PUTT = [[1,1.00],[3,1.04],[4,1.13],[5,1.23],[6,1.34],[7,1.42],[8,1.50],[9,1.56],[10,1.61],[15,1.78],[20,1.87],[30,1.98],[40,2.06],[50,2.14],[60,2.21],[90,2.40]];
+
+  function lookup(tbl, d) {
+    if (d <= tbl[0][0]) return tbl[0][1];
+    if (d >= tbl[tbl.length-1][0]) return tbl[tbl.length-1][1];
+    for (var i = 0; i < tbl.length - 1; i++) {
+      if (d >= tbl[i][0] && d <= tbl[i+1][0]) {
+        var t = (d - tbl[i][0]) / (tbl[i+1][0] - tbl[i][0]);
+        return tbl[i][1] + t * (tbl[i+1][1] - tbl[i][1]);
+      }
+    }
+    return tbl[tbl.length-1][1];
+  }
+
+  function expected(lie, dist) {
+    if (lie === 'green') return lookup(PUTT, dist);          /* dist in feet */
+    if (lie === 'fringe') return lookup(T.fringe, dist * 3); /* yards -> feet-ish scale */
+    var tbl = T[lie] || T.fairway, last = tbl[tbl.length-1];
+    /* Past the end of a yardage table (e.g. Lake Chabot's 673-yd par 6), extend the line at the
+       average slope of the table's last 100 yards instead of flattening out */
+    if (dist > last[0]) {
+      var ref = tbl[0];
+      for (var k = tbl.length - 1; k >= 0; k--) { if (tbl[k][0] <= last[0] - 100) { ref = tbl[k]; break; } }
+      return last[1] + (dist - last[0]) * (last[1] - ref[1]) / (last[0] - ref[0]);
+    }
+    return lookup(tbl, dist);                                /* yards */
+  }
+
+  function category(lie, dist, par) {
+    if (lie === 'green') return 'putt';
+    if (lie === 'tee') return par >= 4 ? 'ott' : 'app';
+    if (lie === 'fringe' || dist <= 30) return 'arg';
+    return 'app';
+  }
+
+  /* SG per shot: E(before) - E(after) - strokes used */
+  function computeHole(hole) {
+    var s = hole.shots || [], out = { ott:0, app:0, arg:0, putt:0, strokes:0 };
+    for (var i = 0; i < s.length; i++) {
+      var cur = s[i];
+      if (cur.dist === null || cur.dist === '' || isNaN(cur.dist)) continue;
+      var eBefore = expected(cur.lie, Number(cur.dist));
+      var next = s[i+1];
+      var eAfter = next && next.dist !== '' && !isNaN(next.dist) ? expected(next.lie, Number(next.dist)) : 0;
+      var used = 1 + (cur.pen ? 1 : 0);
+      var sg = eBefore - eAfter - used;
+      out[category(cur.lie, Number(cur.dist), hole.par)] += sg;
+      out.strokes += used;
+    }
+    return out;
+  }
+
+  function computeRound(holes) {
+    var t = { ott:0, app:0, arg:0, putt:0, strokes:0, par:0, putts:0, three:0, gir:0, girOpp:0, fh:0, fhOpp:0, pen:0, ud:0, udOpp:0, driveTotal:0, driveCount:0 };
+    holes.forEach(function (h) {
+      if (!h.shots || !h.shots.length) return;
+      var r = computeHole(h);
+      t.ott += r.ott; t.app += r.app; t.arg += r.arg; t.putt += r.putt;
+      t.strokes += r.strokes; t.par += Number(h.par);
+
+      var putts = h.shots.filter(function (s) { return s.lie === 'green'; }).length;
+      t.putts += putts;
+      if (putts >= 3) t.three++;
+      h.shots.forEach(function (s) { if (s.pen) t.pen++; });
+
+      /* fairway: par 4/5, second position is fairway */
+      if (Number(h.par) >= 4) {
+        t.fhOpp++;
+        if (h.shots[1] && h.shots[1].lie === 'fairway') t.fh++;
+      }
+      /* driving distance: par 4/5 tee shots that don't finish on the green (PGA Tour convention excludes par 3s),
+         and only shots actually hit with driver -- a shot flagged notDriver (3-wood/iron off the tee, e.g.
+         laying up short) is excluded so it doesn't drag the average down artificially. skipDist marks a drive
+         whose distance isn't meaningful (hit a tree, went into a hazard) -- still driver, just not measured */
+      if (Number(h.par) >= 4 && h.shots[0] && h.shots[0].lie === 'tee' && !h.shots[0].notDriver && !h.shots[0].skipDist && h.yards) {
+        var nextShot = h.shots[1];
+        if (nextShot && nextShot.lie !== 'green' && nextShot.dist !== '' && !isNaN(nextShot.dist)) {
+          var traveled = Number(h.yards) - Number(nextShot.dist);
+          if (traveled > 0) { t.driveTotal += traveled; t.driveCount++; }
+        }
+      }
+      /* GIR: on green by par - 2 strokes */
+      t.girOpp++;
+      var onGreenAt = -1;
+      for (var i = 0; i < h.shots.length; i++) { if (h.shots[i].lie === 'green') { onGreenAt = i; break; } }
+      var girHit = onGreenAt >= 0 && onGreenAt <= Number(h.par) - 2;
+      if (girHit) t.gir++;
+      else {
+        t.udOpp++;
+        if (r.strokes <= Number(h.par)) t.ud++;
+      }
+    });
+    return t;
+  }
+
+  var TOUR_GAP = { ott:-1.78, app:-2.03, arg:-0.39, putt:-0.94 }; /* real scratch-golfer gap vs tour, per category, from Broadie's book table */
+  var CATS = [{k:'ott',name:'Off the tee'},{k:'app',name:'Approach'},{k:'arg',name:'Short game'},{k:'putt',name:'Putting'}];
+  var $ = function (id) { return document.getElementById(id); };
+  var fmt = function (n) { return (n > 0 ? '+' : '') + n.toFixed(1); };
+  var noticeTimer = null;
+  function showNotice(msg) {
+    var el = $('notice');
+    el.textContent = msg;
+    el.style.display = 'block';
+    if (noticeTimer) clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(function () { el.style.display = 'none'; }, 5000);
+    window.scrollTo(0, 0);
+  }
+
+  /* ============ SEED: Poplar Creek, 8/23/26 ============ */
+  /* No rounds are built in: each person's rounds live in their own browser */
+  var SEED = [];
+
+  /* ============ storage ============ */
+  function save() {
+    if (!window.storage || typeof window.storage.set !== 'function') { showNotice('Storage isn\'t available right now — this round may not persist after you close the app.'); return Promise.resolve(); }
+    return window.storage.set(KEY, JSON.stringify(rounds)).catch(function (e) { console.error(e); showNotice('Couldn\'t save to this browser (private browsing can block it). Use Export to back up this round.'); });
+  }
+  function saveCourses() {
+    if (!window.storage || typeof window.storage.set !== 'function') return Promise.resolve();
+    return window.storage.set(CKEY, JSON.stringify(courses)).catch(function (e) { console.error(e); });
+  }
+
+  function load() {
+    if (!window.storage || typeof window.storage.get !== 'function') {
+      rounds = SEED.slice(); courses = COURSE_SEED.slice();
+      return Promise.resolve();
+    }
+    try {
+      var a = window.storage.get(KEY).then(function (r) {
+        var parsed = JSON.parse(r.value);
+        rounds = (parsed && parsed.length) ? parsed : SEED.slice();
+        var changed = (!parsed || !parsed.length);
+        // merge in any seeded rounds not already present (by id), so built-in rounds
+        // can never be hidden by an older, incomplete stored list
+        var have = {}; rounds.forEach(function (rd) { have[rd.id] = 1; });
+        var added = SEED.filter(function (rd) { return !have[rd.id]; });
+        if (added.length) { rounds = rounds.concat(added); changed = true; }
+        // Peacock 10/8: holes 2, 11, 14 were driver (hit trouble), logged as "not driver" before skip-distance existed
+        rounds.forEach(function (rd) {
+          if (rd.id !== 'r1791513158339' || !rd.holes) return;
+          [1, 10, 13].forEach(function (hi) {
+            var t = rd.holes[hi] && rd.holes[hi].shots && rd.holes[hi].shots[0];
+            if (t && t.notDriver && !t.skipDist) { t.notDriver = false; t.skipDist = true; changed = true; }
+          });
+        });
+        if (changed) return save();
+      }).catch(function () { rounds = SEED.slice(); return save(); });
+      var b = window.storage.get(CKEY).then(function (r) {
+        courses = JSON.parse(r.value);
+        // purge tee variants that are no longer offered
+        var dropIds = { 'monarch-lema-white':1, 'monarch-lema-green':1, 'monarch-lema-red':1 };
+        var before = courses.length;
+        courses = courses.filter(function (c) { return !dropIds[c.id]; });
+        // replace stored course copies that were seeded with outdated yardages (id -> stale total)
+        var stale = { 'peacock-blue':6101, 'peacock-white':5792 };
+        courses = courses.filter(function (c) {
+          if (!stale[c.id]) return true;
+          var tot = (c.holes || []).reduce(function (a,h) { return a + Number(h.yards || 0); }, 0);
+          return tot !== stale[c.id];
+        });
+        var changed = courses.length !== before;
+        // merge in any seeded courses not already present (by id)
+        var have = {}; courses.forEach(function (c) { have[c.id] = 1; });
+        var added = COURSE_SEED.filter(function (c) { return !have[c.id]; });
+        if (added.length) { courses = courses.concat(added); changed = true; }
+        if (changed) return saveCourses();
+      }).catch(function () { courses = COURSE_SEED.slice(); return saveCourses(); });
+      return Promise.all([a, b]);
+    } catch (e) {
+      rounds = SEED.slice(); courses = COURSE_SEED.slice();
+      return Promise.resolve();
+    }
+  }
+
+  /* ============ dashboard helpers ============ */
+  var CATSX = [
+    {k:'ott', name:'Off the tee', abbr:'OTT', l:'T', color:'var(--ott)'},
+    {k:'app', name:'Approach', abbr:'APP', l:'A', color:'var(--app)'},
+    {k:'arg', name:'Short game', abbr:'ARG', l:'S', color:'var(--arg)'},
+    {k:'putt', name:'Putting', abbr:'PUTT', l:'P', color:'var(--putt)'}
+  ];
+  var bases = { all: 'scratch', last5: 'scratch' }, openId = null;
+  var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var ICON_UP = 'M7 17 17 7M9 7h8v8', ICON_DOWN = 'M7 7l10 10M17 9v8H9', ICON_FLAT = 'M5 12h14';
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
+  function fmtS(v) {
+    if (v === null || v === undefined || isNaN(v)) return '—';
+    var a = Math.abs(v).toFixed(1);
+    return v > 0.04 ? '+' + a : (v < -0.04 ? '−' + a : '0.0');
+  }
+  function tone(v) { return v > 0.04 ? 'gain' : (v < -0.04 ? 'loss' : ''); }
+  function barColor(v) { return v > 0.04 ? 'var(--gain)' : (v < -0.04 ? 'var(--loss)' : '#8A8A82'); }
+  function niceDate(d) { var p = String(d).split('-'); return p.length === 3 ? MON[+p[1] - 1] + ' ' + (+p[2]) : d; }
+  function toParStr(n) { return n === 0 ? 'E' : (n > 0 ? '+' : '−') + Math.abs(n); }
+  function frac(a, b) { return b ? { v: Math.round(a / b * 100) + '%', s: a + ' of ' + b } : { v: '—', s: 'none' }; }
+  function byDateDesc(a, b) { return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0); }
+
+  /* SG for a round against a given baseline ('scratch' or 'tour'). Rounds store tour SG; scratch adds
+     back the scratch-vs-tour gap (per 18 holes, halved for a 9-hole round) */
+  function sgFor(r, base) {
+    if (r[base]) return r[base];
+    var other = base === 'scratch' ? 'tour' : 'scratch';
+    if (!r[other]) return null;
+    var o = {}, sign = base === 'scratch' ? -1 : 1;
+    var nh = (r.holes && r.holes.length) ? r.holes.length : (r.par > 36 ? 18 : 9), sc = nh / 18;
+    CATS.forEach(function (c) { o[c.k] = r[other][c.k] + sign * TOUR_GAP[c.k] * sc; });
+    return o;
+  }
+  function averages(list, base) {
+    var s = {ott:0,app:0,arg:0,putt:0}, n = 0;
+    list.forEach(function (r) { if (!is18(r)) return; var g = sgFor(r, base); if (!g) return; n++; CATS.forEach(function (c) { s[c.k] += g[c.k]; }); });
+    if (!n) return null;
+    CATS.forEach(function (c) { s[c.k] /= n; });
+    return s;
+  }
+  function avgNum(f) {
+    var v = rounds.map(function (r) { return r[f]; }).filter(function (x) { return x !== null && x !== undefined && x !== ''; }).map(Number);
+    return v.length ? v.reduce(function (a,b) { return a+b; }, 0) / v.length : null;
+  }
+
+  /* For stats that are raw totals (score, putts) rather than rates, only 18-hole rounds
+     are meaningful — a 9-hole round at 40 strokes shouldn't drag the scoring average */
+  function is18(r) { return r.par > 36; }
+  function avgNum18(f) {
+    var v = rounds.filter(is18).map(function (r) { return r[f]; }).filter(function (x) { return x !== null && x !== undefined && x !== ''; }).map(Number);
+    return v.length ? v.reduce(function (a,b) { return a+b; }, 0) / v.length : null;
+  }
+
+  /* Older rounds saved before avgDrive existed as a field still have full shot data in r.holes.
+     Derive it on the fly from that instead of showing blank. */
+  function driveOf(r) {
+    if (r.avgDrive !== null && r.avgDrive !== undefined && r.avgDrive !== '') return Number(r.avgDrive);
+    if (r.holes && r.holes.length) {
+      var t = computeRound(r.holes);
+      if (t.driveCount) return Math.round(t.driveTotal / t.driveCount);
+    }
+    return null;
+  }
+
+  /* Same rules as before: score, to-par, FH, GIR, putts, 3-putts and U&D use 18-hole rounds only;
+     avg drive and handicap use every round in the set */
+  function statMap(list) {
+    var l18 = list.filter(is18);
+    function mean(arr, f) {
+      var v = arr.map(function (r) { return r[f]; }).filter(function (x) { return x !== null && x !== undefined && x !== ''; }).map(Number);
+      return v.length ? v.reduce(function (a,b) { return a+b; }, 0) / v.length : null;
+    }
+    var tp = l18.filter(function (r) { return r.score && r.par; });
+    var dv = list.map(driveOf).filter(function (x) { return x !== null; });
+    return {
+      l18: l18, n18: l18.length,
+      score: mean(l18, 'score'),
+      toPar: tp.length ? tp.reduce(function (a,r) { return a + (r.score - r.par); }, 0) / tp.length : null,
+      fh: mean(l18, 'fh'), gir: mean(l18, 'gir'), ud: mean(l18, 'ud'),
+      putts: mean(l18, 'putts'), three: mean(l18, 'three'), hcp: mean(list, 'hcp'),
+      drive: dv.length ? Math.round(dv.reduce(function (a,b) { return a+b; }, 0) / dv.length) : null
+    };
+  }
+
+  /* Last five 18-hole rounds by date (9-holers are skipped, same as the averages) */
+  var RECENT_N = 5;
+  function recentRounds() { return rounds.filter(is18).slice().sort(byDateDesc).slice(0, RECENT_N); }
+
+  /* ============ dashboard render ============ */
+  function sectionHTML(id, title, list, m, extraChip) {
+    if (!m.n18) {
+      return '<div class="sec"><div class="sec-hd"><div class="tag">' + esc(title) + '</div></div><span class="empty">No 18-hole rounds logged yet.</span></div>';
+    }
+    var base = bases[id], avg = averages(list, base) || {ott:0,app:0,arg:0,putt:0};
+    var total = CATS.reduce(function (a, c) { return a + avg[c.k]; }, 0);
+    var dates = m.l18.map(function (r) { return r.date; }).sort();
+    var pct = function (x) { return x === null ? '—' : Math.round(x) + '%'; };
+    var chips = [
+      m.toPar === null ? null : (m.toPar > 0 ? '+' : (m.toPar < 0 ? '−' : '')) + Math.abs(m.toPar).toFixed(1) + ' to par',
+      m.hcp === null ? null : 'Index ' + m.hcp.toFixed(1),
+      extraChip
+    ].filter(Boolean);
+    var tiles = CATSX.map(function (c) {
+      var v = avg[c.k], icon = v > 0.04 ? ICON_UP : (v < -0.04 ? ICON_DOWN : ICON_FLAT);
+      return '<div class="tile" style="background:' + c.color + '">' +
+        '<div class="t-hd"><span>' + c.abbr + '</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + icon + '"></path></svg></div>' +
+        '<div><div class="t-v">' + fmtS(v) + '</div><div class="t-n">' + c.name + '</div></div></div>';
+    }).join('');
+    var stats = [
+      ['Fairways', pct(m.fh)], ['GIR', pct(m.gir)], ['Up &amp; dn', pct(m.ud)],
+      ['Drive', m.drive === null ? '—' : m.drive], ['Putts', m.putts === null ? '—' : m.putts.toFixed(1)], ['3-putts', m.three === null ? '—' : m.three.toFixed(1)]
+    ].map(function (s) { return '<div><div class="k">' + s[0] + '</div><div class="v">' + s[1] + '</div></div>'; }).join('');
+    return '<div class="sec">' +
+      '<div class="sec-hd"><div class="tag">' + esc(title) + '</div><div class="range">' + niceDate(dates[0]) + ' – ' + niceDate(dates[dates.length - 1]) + '</div></div>' +
+      '<div><div class="eyebrow">Scoring avg</div><div class="big">' + m.score.toFixed(1) + '</div>' +
+        '<div class="chips">' + chips.map(function (c) { return '<div class="chip">' + c + '</div>'; }).join('') + '</div></div>' +
+      '<div class="sg-hd"><div><div class="h2">Strokes gained</div><div class="sub">total <b>' + fmtS(total) + '</b> per round</div></div>' +
+        '<div class="seg" role="group" aria-label="Baseline">' +
+          '<button class="' + (base === 'scratch' ? 'on' : '') + '" data-sec="' + id + '" data-base="scratch" aria-pressed="' + (base === 'scratch') + '">Scratch</button>' +
+          '<button class="' + (base === 'tour' ? 'on' : '') + '" data-sec="' + id + '" data-base="tour" aria-pressed="' + (base === 'tour') + '">Tour</button>' +
+        '</div></div>' +
+      '<div class="tiles">' + tiles + '</div>' +
+      '<div class="strip">' + stats + '</div>' +
+    '</div>';
+  }
+
+  function renderSections() {
+    var last = recentRounds(), mAll = statMap(rounds), mLast = statMap(last);
+    var delta = (mAll.score !== null && mLast.score !== null) ? mLast.score - mAll.score : null;
+    $('sections').innerHTML =
+      sectionHTML('all', 'All rounds', rounds, mAll, mAll.n18 + ' × 18 holes') +
+      sectionHTML('last5', 'Last ' + (last.length || RECENT_N) + (last.length === 1 ? ' round' : ' rounds'), last, mLast, delta === null ? null : fmtS(delta) + ' vs all');
+  }
+
+  /* ============ per-round tour stats (computed from the shot log) ============ */
+  function validShot(x) { return x && !(x.dist === null || x.dist === '' || x.dist === undefined || isNaN(x.dist)); }
+  function tourStats(r) {
+    if (!r.holes || !r.holes.length) return null;
+    var A = [{lab:'Inside 125 yds'}, {lab:'125–175 yds'}, {lab:'175+ yds'}];
+    var P = [{lab:'0–5 ft', hi:5}, {lab:'6–10 ft', hi:10}, {lab:'11–20 ft', hi:20}, {lab:'21+ ft', hi:Infinity}];
+    A.forEach(function (b) { b.n = 0; b.sg = 0; b.prox = 0; });
+    P.forEach(function (b) { b.n = 0; b.made = 0; b.sg = 0; });
+    var par = { 3:{n:0,t:0}, 4:{n:0,t:0}, 5:{n:0,t:0} };
+    var o = { holes:0, gir:0, birdGir:0, bogey:0, miss:0, scr:0, sand:0, sandSave:0, bbOpp:0, bb:0, big:[], A:A, P:P, par:par };
+    var prevBogey = false;
+    /* Expected-strokes tables are Tour-based. To show buckets vs scratch, spread each category's scratch gap
+       (TOUR_GAP, per 18 holes, scaled for a 9-hole round) evenly over this round's shots in that category,
+       so the buckets add up to the round's scratch totals on the row above */
+    var nCat = { ott:0, app:0, arg:0, putt:0 };
+    r.holes.forEach(function (h) {
+      var s = (h.shots || []).filter(validShot);
+      s.forEach(function (cur) { nCat[category(cur.lie, Number(cur.dist), Number(h.par))]++; });
+    });
+    var adj = {}, hsc = r.holes.length / 18;
+    CATS.forEach(function (c) { adj[c.k] = nCat[c.k] ? -TOUR_GAP[c.k] * hsc / nCat[c.k] : 0; });
+    r.holes.forEach(function (h, hi) {
+      var s = (h.shots || []).filter(validShot);
+      if (!s.length) return;
+      var hp = Number(h.par), strokes = 0, onGreen = -1, sandAt = -1;
+      s.forEach(function (cur, i) {
+        var d = Number(cur.dist), next = s[i + 1], used = 1 + (cur.pen ? 1 : 0);
+        var sg = expected(cur.lie, d) - (next ? expected(next.lie, Number(next.dist)) : 0) - used;
+        var cat = category(cur.lie, d, hp);
+        sg += adj[cat];
+        strokes += used;
+        if (cur.lie === 'green' && onGreen < 0) onGreen = i;
+        if (cur.lie === 'sand' && d <= 30 && sandAt < 0) sandAt = i;
+        if (cat === 'app') {
+          /* proximity = where the approach left the ball, in feet (0 if holed) */
+          var b = d < 125 ? A[0] : (d <= 175 ? A[1] : A[2]);
+          b.n++; b.sg += sg; b.prox += next ? Math.max(0, Number(next.dist)) * (next.lie === 'green' ? 1 : 3) : 0;
+        }
+        if (cur.lie === 'green') {
+          for (var k = 0; k < P.length; k++) { if (d <= P[k].hi) { P[k].n++; P[k].sg += sg; if (!next) P[k].made++; break; } }
+        }
+        if (sg < -1) o.big.push({ hole: hi + 1, lie: cur.lie, d: d, sg: sg, pen: !!cur.pen });
+      });
+      var diff = strokes - hp, pk = hp >= 5 ? 5 : hp;
+      if (par[pk]) { par[pk].n++; par[pk].t += strokes; }
+      o.holes++;
+      if (onGreen >= 0 && onGreen <= hp - 2) { o.gir++; if (diff <= -1) o.birdGir++; }
+      else { o.miss++; if (diff <= 0) o.scr++; }
+      if (sandAt >= 0) {
+        /* sand save: greenside bunker (30 yds or less) to holed in two strokes or fewer */
+        var rest = 0;
+        for (var j = sandAt; j < s.length; j++) rest += 1 + (s[j].pen ? 1 : 0);
+        o.sand++; if (rest <= 2) o.sandSave++;
+      }
+      if (diff >= 1) o.bogey++;
+      if (prevBogey) { o.bbOpp++; if (diff <= -1) o.bb++; }
+      prevBogey = diff >= 1;
+    });
+    o.big.sort(function (a, b) { return a.sg - b.sg; });
+    return o;
+  }
+
+  var LIE_NAME = { tee:'Tee', fairway:'Fairway', rough:'Rough', sand:'Sand', recovery:'Trees', fringe:'Fringe', green:'Green' };
+  function cell(k, v, s) { return '<div><div class="k">' + k + '</div><div class="v">' + v + '</div>' + (s ? '<div class="s">' + s + '</div>' : '') + '</div>'; }
+
+  function detailHTML(r) {
+    var sg = sgFor(r, 'scratch'), t = tourStats(r), h = '';
+    if (sg) {
+      h += '<div class="ctiles">' + CATSX.map(function (c) {
+        var x = sg[c.k], bg = x > 0.04 ? '#DFF3E6' : (x < -0.04 ? '#FBE3E3' : '#FFFFFF');
+        return '<div class="ct" style="background:' + bg + '"><div class="a">' + c.abbr + '</div><div class="v ' + tone(x) + '">' + fmtS(x) + '</div></div>';
+      }).join('') + '</div>';
+    }
+    var d = driveOf(r), bits = [];
+    if (r.fh != null) bits.push('FH ' + Math.round(r.fh) + '%');
+    if (r.gir != null) bits.push('GIR ' + Math.round(r.gir) + '%');
+    if (r.putts != null) bits.push(r.putts + ' putts');
+    if (r.three != null) bits.push(r.three + ' three-putt' + (r.three === 1 ? '' : 's'));
+    if (r.ud != null) bits.push('U&amp;D ' + Math.round(r.ud) + '%');
+    if (r.pen != null) bits.push(r.pen + ' penalt' + (r.pen === 1 ? 'y' : 'ies'));
+    if (d != null) bits.push('drive ' + d + ' yds');
+    if (r.rating) bits.push(r.rating + '/' + r.slope);
+    h += '<div class="line">' + bits.join(' · ') + (is18(r) ? '' : '<br>9 holes — left out of the averages.') + '</div>';
+
+    if (!t) {
+      h += '<div class="blk"><span class="empty">Entered as summary stats, so there\'s no shot-by-shot data for tour stats on this round.</span></div>';
+    } else {
+      var pa = function (k) { return t.par[k].n ? (t.par[k].t / t.par[k].n).toFixed(2) : '—'; };
+      var pn = function (k) { return t.par[k].n + ' hole' + (t.par[k].n === 1 ? '' : 's'); };
+      var bc = frac(t.birdGir, t.gir), bo = frac(t.bogey, t.holes), bb = frac(t.bb, t.bbOpp);
+      h += '<div class="blk"><div class="blk-h"><b>Scoring</b><span>' + t.holes + ' holes</span></div><div class="g3">' +
+        cell('Par 3 avg', pa(3), pn(3)) + cell('Par 4 avg', pa(4), pn(4)) + cell('Par 5+ avg', pa(5), pn(5)) +
+        cell('Birdie conv.', bc.v, bc.s + ' GIR') + cell('Bogey or worse', bo.v, bo.s + ' holes') + cell('Bounce back', bb.v, bb.s + ' after bogey') +
+        '</div></div>';
+
+      h += '<div class="blk"><div class="blk-h"><b>Approach</b><span>SG vs scratch</span></div><table class="tt"><thead><tr><th>From</th><th>Shots</th><th>SG</th><th>Proximity</th></tr></thead><tbody>' +
+        t.A.map(function (b) {
+          return '<tr><td>' + b.lab + '</td><td>' + (b.n || '—') + '</td><td class="' + (b.n ? tone(b.sg) : '') + '">' + (b.n ? fmtS(b.sg) : '—') + '</td><td>' + (b.n ? Math.round(b.prox / b.n) + ' ft' : '—') + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+
+      h += '<div class="blk"><div class="blk-h"><b>Putting</b><span>SG vs scratch</span></div><table class="tt"><thead><tr><th>Length</th><th>Made</th><th>Make %</th><th>SG</th></tr></thead><tbody>' +
+        t.P.map(function (b) {
+          return '<tr><td>' + b.lab + '</td><td>' + (b.n ? b.made + '/' + b.n : '—') + '</td><td>' + (b.n ? Math.round(b.made / b.n * 100) + '%' : '—') + '</td><td class="' + (b.n ? tone(b.sg) : '') + '">' + (b.n ? fmtS(b.sg) : '—') + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+
+      var sc = frac(t.scr, t.miss), ss = frac(t.sandSave, t.sand);
+      h += '<div class="blk"><div class="blk-h"><b>Short game</b><span>missed greens</span></div><div class="g2">' +
+        cell('Scrambling', sc.v, sc.s + ' missed greens') + cell('Sand saves', ss.v, ss.s + ' greenside bunkers') + '</div></div>';
+
+      h += '<div class="blk"><div class="blk-h"><b>Big misses</b><span>' + t.big.length + ' shot' + (t.big.length === 1 ? '' : 's') + ' cost 1+ stroke</span></div>' +
+        (t.big.length ? t.big.slice(0, 4).map(function (m) {
+          return '<div class="miss"><span>Hole ' + m.hole + ' · ' + LIE_NAME[m.lie] + ', ' + m.d + (m.lie === 'green' ? ' ft' : ' yds') + (m.pen ? ' · penalty' : '') + '</span><span class="loss">' + fmtS(m.sg) + '</span></div>';
+        }).join('') + (t.big.length > 4 ? '<div class="note" style="margin-top:6px">+ ' + (t.big.length - 4) + ' more</div>' : '')
+        : '<span class="empty">None — no shot cost more than a stroke.</span>') +
+        '</div>';
+    }
+    h += '<div class="acts">' + (r.holes && r.holes.length ? '<button class="lbtn" data-edit="' + esc(r.id) + '">Edit round</button>' : '') +
+      '<button class="lbtn danger" data-del="' + esc(r.id) + '">Delete round</button></div>';
+    return h;
+  }
+
+  function renderRounds() {
+    var host = $('roundList');
+    if (!rounds.length) { host.innerHTML = '<span class="empty">Nothing logged yet.</span>'; return; }
+    host.innerHTML = rounds.slice().sort(byDateDesc).map(function (r) {
+      var sg = sgFor(r, 'scratch'), total = sg ? CATS.reduce(function (a, c) { return a + sg[c.k]; }, 0) : null;
+      var tp = r.score - r.par, nine = !is18(r), open = openId === r.id;
+      var good = nine ? 1 : 2, bad = nine ? 4 : 7;
+      var box = tp <= good ? 'var(--putt)' : (tp >= bad ? 'var(--app)' : 'var(--muted)');
+      var mini = sg ? CATSX.map(function (c) {
+        var x = sg[c.k], hgt = Math.max(Math.min(Math.abs(x) / 4, 1) * 20, 2);
+        return '<div class="mc"><div class="mt"><div class="mb" style="' + (x >= 0 ? 'bottom' : 'top') + ':50%;height:' + hgt.toFixed(1) + 'px;background:' + barColor(x) + '"></div></div>' + c.l + '</div>';
+      }).join('') : '';
+      return '<div class="rd' + (open ? ' open' : '') + '">' +
+        '<button class="rd-row" data-open="' + esc(r.id) + '" aria-expanded="' + open + '">' +
+          '<div class="sbox" style="background:' + box + '"><b>' + r.score + '</b><span>' + toParStr(tp) + '</span></div>' +
+          '<div class="rd-main"><div class="rd-c">' + esc(r.course) + '</div>' +
+            '<div class="rd-m">' + niceDate(r.date) + ' · ' + esc(r.tee) + ' · par ' + r.par + (nine ? ' · 9 holes' : '') + '</div>' +
+            '<div class="rd-m" style="font-weight:600">' + (total === null ? '—' : fmtS(total)) + ' SG</div></div>' +
+          '<div class="mini" aria-hidden="true">' + mini + '</div>' +
+          '<svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>' +
+        '</button>' +
+        (open ? '<div class="rd-x">' + detailHTML(r) + '</div>' : '') +
+      '</div>';
+    }).join('');
+  }
+
+  function render() {
+    renderSections(); renderRounds();
+    var withHcp = rounds.filter(function (r) { return r.hcp !== null && r.hcp !== undefined && r.hcp !== ''; }).sort(byDateDesc)[0];
+    var pill = $('idxPill');
+    if (withHcp) { pill.textContent = 'Index ' + withHcp.hcp; pill.style.display = ''; } else { pill.style.display = 'none'; }
+  }
+
+  /* one delegated listener for the whole dashboard: baseline toggles, open/close a round, edit, delete */
+  $('dash').addEventListener('click', function (e) {
+    var t = e.target.closest ? e.target.closest('[data-base],[data-open],[data-edit],[data-del]') : null;
+    if (!t) return;
+    if (t.hasAttribute('data-base')) {
+      bases[t.getAttribute('data-sec')] = t.getAttribute('data-base');
+      renderSections();
+    } else if (t.hasAttribute('data-open')) {
+      var id = t.getAttribute('data-open');
+      openId = openId === id ? null : id;
+      renderRounds();
+    } else if (t.hasAttribute('data-edit')) {
+      var r = rounds.filter(function (x) { return x.id === t.getAttribute('data-edit'); })[0];
+      if (r && r.holes && r.holes.length) showBuilder(r);
+    } else if (t.hasAttribute('data-del')) {
+      if (t.getAttribute('data-armed') !== '1') {
+        t.setAttribute('data-armed', '1'); t.classList.add('armed'); t.textContent = 'Tap again to delete';
+        setTimeout(function () { if (t.isConnected) { t.removeAttribute('data-armed'); t.classList.remove('armed'); t.textContent = 'Delete round'; } }, 4000);
+        return;
+      }
+      var did = t.getAttribute('data-del');
+      rounds = rounds.filter(function (x) { return x.id !== did; });
+      if (openId === did) openId = null;
+      save().then(render);
+    }
+  });
+
+  /* ============ builder ============ */
+  var draft = null, curHole = 0, editingId = null;
+
+  function newDraft() {
+    var holes = [];
+    for (var i = 0; i < 18; i++) holes.push({ par: 4, yards: '', shots: [{ lie:'tee', dist:'', pen:false }] });
+    var now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); /* local date, not UTC */
+    return { course:'', date:now.toISOString().slice(0,10), tee:'', slope:'', rating:'', hcp:'', holes:holes };
+  }
+
+  var LIES = [['tee','Tee'],['fairway','Fairway'],['rough','Rough'],['sand','Sand'],['recovery','Trees / recovery'],['fringe','Fringe'],['green','Green']];
+
+  function renderShots() {
+    var h = draft.holes[curHole];
+    $('shotList').innerHTML = h.shots.map(function (s, i) {
+      var opts = LIES.map(function (l) { return '<option value="'+l[0]+'"'+(s.lie===l[0]?' selected':'')+'>'+l[1]+'</option>'; }).join('');
+      var unit = s.lie === 'green' ? 'Feet to hole' : 'Yards to hole';
+      var isTee = i === 0 && s.lie === 'tee' && Number(h.par) >= 4;
+      return '<div class="shot"><div class="shot-hd"><span class="shot-n">Shot '+(i+1)+'</span>'+
+        (h.shots.length > 1 ? '<button class="link-btn danger" data-rm="'+i+'">Remove</button>' : '')+'</div>'+
+        '<div class="shot-grid">'+
+          '<div class="field"><label>Lie</label><select data-lie="'+i+'">'+opts+'</select></div>'+
+          '<div class="field"><label>'+unit+'</label><input data-dist="'+i+'" type="text" inputmode="decimal" autocomplete="off" value="'+(s.dist===''?'':s.dist)+'"></div>'+
+        '</div>'+
+        '<button type="button" class="pen-toggle'+(s.pen?' on':'')+'" data-pen="'+i+'">'+(s.pen?'✓ Penalty stroke on this shot':'+ Add penalty stroke')+'</button>'+
+        (isTee ? '<button type="button" class="pen-toggle'+(s.notDriver?' on':'')+'" data-notdriver="'+i+'">'+(s.notDriver?'✓ Not driver (won\'t count toward avg drive)':'+ Mark as not driver (3-wood / iron off the tee)')+'</button>' +
+          '<button type="button" class="pen-toggle'+(s.skipDist?' on':'')+'" data-skipdist="'+i+'">'+(s.skipDist?'✓ Skip distance (won\'t count toward avg drive)':'+ Skip distance (hit something / hazard)')+'</button>' : '') +
+      '</div>';
+    }).join('');
+
+    var L = $('shotList');
+    Array.prototype.forEach.call(L.querySelectorAll('[data-lie]'), function (el) {
+      el.addEventListener('change', function () { h.shots[+el.getAttribute('data-lie')].lie = el.value; renderShots(); updateLive(); });
+    });
+    Array.prototype.forEach.call(L.querySelectorAll('[data-dist]'), function (el) {
+      el.addEventListener('input', function () {
+        var v = el.value.replace(/[^0-9.]/g, '');
+        if (v !== el.value) { el.value = v; }
+        h.shots[+el.getAttribute('data-dist')].dist = v;
+        updateLive();
+      });
+    });
+    Array.prototype.forEach.call(L.querySelectorAll('[data-pen]'), function (el) {
+      el.addEventListener('click', function () {
+        var idx = +el.getAttribute('data-pen');
+        var on = !h.shots[idx].pen;
+        h.shots[idx].pen = on;
+        el.classList.toggle('on', on);
+        el.textContent = on ? '✓ Penalty stroke on this shot' : '+ Add penalty stroke';
+        updateLive();
+      });
+    });
+    Array.prototype.forEach.call(L.querySelectorAll('[data-notdriver]'), function (el) {
+      el.addEventListener('click', function () {
+        var idx = +el.getAttribute('data-notdriver');
+        var on = !h.shots[idx].notDriver;
+        h.shots[idx].notDriver = on;
+        el.classList.toggle('on', on);
+        el.textContent = on ? '✓ Not driver (won\'t count toward avg drive)' : '+ Mark as not driver (3-wood / iron off the tee)';
+        updateLive();
+      });
+    });
+    Array.prototype.forEach.call(L.querySelectorAll('[data-skipdist]'), function (el) {
+      el.addEventListener('click', function () {
+        var idx = +el.getAttribute('data-skipdist');
+        var on = !h.shots[idx].skipDist;
+        h.shots[idx].skipDist = on;
+        el.classList.toggle('on', on);
+        el.textContent = on ? '✓ Skip distance (won\'t count toward avg drive)' : '+ Skip distance (hit something / hazard)';
+        updateLive();
+      });
+    });
+    Array.prototype.forEach.call(L.querySelectorAll('[data-rm]'), function (el) {
+      el.addEventListener('click', function () { h.shots.splice(+el.getAttribute('data-rm'), 1); renderShots(); updateLive(); });
+    });
+  }
+
+  function updateLive() {
+    var h = draft.holes[curHole], r = computeHole(h);
+    var sgHole = r.ott + r.app + r.arg + r.putt;
+    $('liveScore').textContent = r.strokes ? r.strokes + ' (' + (r.strokes - h.par > 0 ? '+' : '') + (r.strokes - h.par) + ')' : '—';
+    $('liveSG').textContent = r.strokes ? fmt(sgHole) : '—';
+    var tot = computeRound(draft.holes);
+    $('liveTotal').textContent = tot.strokes ? tot.strokes + ' strokes · ' + fmt(tot.ott+tot.app+tot.arg+tot.putt) + ' SG' : '—';
+
+    $('holeScores').innerHTML = draft.holes.map(function (hh, i) {
+      var rr = computeHole(hh);
+      var cls = i === curHole ? 'hs cur' : (rr.strokes ? 'hs done' : 'hs');
+      return '<div class="'+cls+'" data-go="'+i+'">'+(rr.strokes || (i+1))+'</div>';
+    }).join('');
+    Array.prototype.forEach.call($('holeScores').querySelectorAll('[data-go]'), function (el) {
+      el.addEventListener('click', function () { curHole = +el.getAttribute('data-go'); loadHole(); });
+    });
+  }
+
+  function loadHole() {
+    var h = draft.holes[curHole];
+    $('holeN').textContent = curHole + 1;
+    $('h_par').value = h.par;
+    $('h_yards').value = h.yards;
+    $('prevHole').disabled = curHole === 0;
+    $('nextHole').disabled = curHole === draft.holes.length - 1;
+    $('holedBtn').textContent = curHole === draft.holes.length - 1 ? 'Holed · finish round' : 'Holed · next hole';
+    if (h.shots[0] && h.shots[0].lie === 'tee' && h.shots[0].dist === '' && h.yards) h.shots[0].dist = h.yards;
+    renderShots(); updateLive();
+  }
+
+  function fillCourseSelect() {
+    $('b_courseSel').innerHTML =
+      courses.map(function (c) { return '<option value="' + c.id + '">' + c.name + ' — ' + c.tee + '</option>'; }).join('') +
+      '<option value="__new">+ New course…</option>';
+  }
+
+  function applyCourse(id) {
+    if (id === '__new') {
+      $('newCourseWrap').style.display = 'block';
+      $('b_course').value = ''; $('b_tee').value = '';
+      $('b_slope').value = ''; $('b_rating').value = '';
+      draft.holes = newDraft().holes;
+      draft.fromCourse = null;
+      curHole = 0; loadHole();
+      return;
+    }
+    var c = courses.filter(function (x) { return x.id === id; })[0];
+    if (!c) return;
+    $('newCourseWrap').style.display = 'none';
+    $('b_course').value = c.name;
+    $('b_tee').value = c.tee;
+    $('b_slope').value = c.slope || '';
+    $('b_rating').value = c.rating || '';
+    draft.holes = c.holes.map(function (h) {
+      return { par: h.par, yards: h.yards, shots: [{ lie: 'tee', dist: h.yards, pen: false }] };
+    });
+    draft.fromCourse = c.id;
+    $('b_holes').value = draft.holes.length;
+    curHole = 0; loadHole();
+  }
+
+  function showBuilder(editRound) {
+    curHole = 0;
+    if (editRound) {
+      editingId = editRound.id;
+      draft = {
+        course: editRound.course, date: editRound.date, tee: editRound.tee,
+        slope: editRound.slope, rating: editRound.rating, hcp: editRound.hcp,
+        holes: JSON.parse(JSON.stringify(editRound.holes)) /* deep copy so cancelling doesn't mutate the saved round */
+      };
+    } else {
+      editingId = null;
+      draft = newDraft();
+    }
+    $('dash').style.display = 'none'; $('builder').style.display = 'block';
+    $('b_date').value = draft.date;
+    $('b_hcp').value = draft.hcp || '';
+    if (!editRound) {
+      var last = rounds.slice().sort(function (a,b) { return a.date < b.date ? 1 : -1; })[0];
+      if (last) { $('b_hcp').value = last.hcp || ''; }
+    }
+    fillCourseSelect();
+    if (editRound) {
+      $('newCourseWrap').style.display = 'none';
+      $('b_course').value = draft.course; $('b_tee').value = draft.tee;
+      $('b_slope').value = draft.slope || ''; $('b_rating').value = draft.rating || '';
+      $('b_holes').value = draft.holes.length;
+      var match = courses.filter(function (c) { return c.name === draft.course && c.tee === draft.tee; })[0];
+      $('b_courseSel').value = match ? match.id : '__new';
+      loadHole();
+    } else {
+      applyCourse(courses.length ? courses[0].id : '__new');
+    }
+    window.scrollTo(0, 0);
+  }
+
+  $('b_courseSel').addEventListener('change', function () { applyCourse(this.value); });
+
+  function showDash() {
+    editingId = null;
+    $('builder').style.display = 'none'; $('dash').style.display = 'block';
+    window.scrollTo(0, 0);
+  }
+
+  $('newRoundBtn').addEventListener('click', function () { showBuilder(); });
+  $('cancelRound').addEventListener('click', function () { editingId = null; showDash(); });
+  $('prevHole').addEventListener('click', function () { if (curHole > 0) { curHole--; loadHole(); } });
+  $('nextHole').addEventListener('click', function () { if (curHole < draft.holes.length - 1) { curHole++; loadHole(); } });
+  $('h_par').addEventListener('change', function () { draft.holes[curHole].par = +this.value; renderShots(); updateLive(); });
+  $('h_yards').addEventListener('input', function () {
+    var h = draft.holes[curHole]; h.yards = this.value;
+    if (h.shots[0] && h.shots[0].lie === 'tee') { h.shots[0].dist = this.value; renderShots(); }
+    updateLive();
+  });
+  $('addShot').addEventListener('click', function () {
+    var h = draft.holes[curHole], prev = h.shots[h.shots.length - 1];
+    var lie = prev && prev.lie === 'green' ? 'green' : 'fairway';
+    h.shots.push({ lie: lie, dist: '', pen: false });
+    renderShots(); updateLive();
+  });
+  /* Holed: the last row is the shot that went in. Drop a trailing blank row, then go to the next tee
+     (or, on the last hole, down to Save round) */
+  $('holedBtn').addEventListener('click', function () {
+    var h = draft.holes[curHole];
+    while (h.shots.length > 1) {
+      var lastShot = h.shots[h.shots.length - 1];
+      if (lastShot.dist === '' || lastShot.dist === null || lastShot.dist === undefined) h.shots.pop(); else break;
+    }
+    if (!computeHole(h).strokes) { renderShots(); updateLive(); showNotice('Enter this hole\'s shots before marking it holed.'); return; }
+    if (curHole < draft.holes.length - 1) {
+      curHole++; loadHole();
+      var hb = document.querySelector('#builder .holebar');
+      if (hb && hb.scrollIntoView) hb.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    } else {
+      renderShots(); updateLive();
+      var sv = $('saveRound');
+      if (sv && sv.scrollIntoView) sv.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  });
+
+  $('b_holes').addEventListener('change', function () {
+    var n = Math.max(1, Math.min(18, +this.value || 18));
+    while (draft.holes.length > n) draft.holes.pop();
+    while (draft.holes.length < n) draft.holes.push({ par:4, yards:'', shots:[{lie:'tee',dist:'',pen:false}] });
+    if (curHole >= n) curHole = n - 1;
+    loadHole();
+  });
+
+  $('saveRound').addEventListener('click', function () {
+    var course = $('b_course').value.trim();
+    if (!course) { showNotice('Name the course before saving.'); return; }
+    var t = computeRound(draft.holes);
+    if (!t.strokes) { showNotice('Add at least one hole of shots before saving.'); return; }
+    var tour = { ott:+t.ott.toFixed(2), app:+t.app.toFixed(2), arg:+t.arg.toFixed(2), putt:+t.putt.toFixed(2) };
+
+    /* remember this course for next time */
+    var teeName = $('b_tee').value.trim() || '—';
+    var existing = courses.filter(function (c) { return c.name === course && c.tee === teeName; })[0];
+    var holeDefs = draft.holes.map(function (h) { return { par: +h.par, yards: +h.yards || 0 }; });
+    if (existing) {
+      existing.slope = $('b_slope').value ? +$('b_slope').value : existing.slope;
+      existing.rating = $('b_rating').value ? +$('b_rating').value : existing.rating;
+      existing.holes = holeDefs;
+    } else {
+      courses.push({
+        id: 'c' + Date.now(), name: course, tee: teeName,
+        slope: $('b_slope').value ? +$('b_slope').value : null,
+        rating: $('b_rating').value ? +$('b_rating').value : null,
+        holes: holeDefs
+      });
+    }
+    var roundObj = {
+      id: editingId || ('r' + Date.now()), date: $('b_date').value || draft.date, course: course,
+      tee: $('b_tee').value.trim() || '—',
+      slope: $('b_slope').value ? +$('b_slope').value : null,
+      rating: $('b_rating').value ? +$('b_rating').value : null,
+      hcp: $('b_hcp').value ? +$('b_hcp').value : null,
+      par: t.par, score: t.strokes,
+      fh: t.fhOpp ? +(t.fh / t.fhOpp * 100).toFixed(1) : null,
+      gir: t.girOpp ? +(t.gir / t.girOpp * 100).toFixed(1) : null,
+      putts: t.putts, three: t.three, pen: t.pen,
+      ud: t.udOpp ? +(t.ud / t.udOpp * 100).toFixed(1) : null,
+      avgDrive: t.driveCount ? Math.round(t.driveTotal / t.driveCount) : null,
+      tour: tour,
+      holes: draft.holes
+    };
+    if (editingId) {
+      var idx = -1;
+      for (var ri = 0; ri < rounds.length; ri++) { if (rounds[ri].id === editingId) { idx = ri; break; } }
+      if (idx >= 0) rounds[idx] = roundObj; else rounds.push(roundObj);
+    } else {
+      rounds.push(roundObj);
+    }
+    editingId = null;
+    Promise.all([save(), saveCourses()]).then(function () { showDash(); render(); });
+  });
+
+  $('exportBtn').addEventListener('click', function () {
+    var box = $('dataBox');
+    var payload = JSON.stringify({ v: 2, exported: new Date().toISOString(), rounds: rounds, courses: courses }, null, 0);
+    box.style.display = 'block';
+    box.value = payload;
+    box.focus(); box.select();
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(payload).then(function () { showNotice('Copied to clipboard — paste it somewhere safe as a backup.'); },
+          function () { showNotice('Select all the text in the box and copy it manually.'); });
+      } else {
+        document.execCommand && document.execCommand('copy');
+        showNotice('Select all the text in the box and copy it (Ctrl/Cmd+C).');
+      }
+    } catch (e) { showNotice('Select all the text in the box and copy it manually.'); }
+  });
+
+  $('importBtn').addEventListener('click', function () {
+    var box = $('dataBox');
+    if (box.style.display === 'none' || !box.value.trim()) {
+      box.style.display = 'block';
+      box.value = '';
+      box.focus();
+      showNotice('Paste your exported backup text into the box, then tap Restore again.');
+      return;
+    }
+    var data;
+    try { data = JSON.parse(box.value.trim()); }
+    catch (e) { showNotice('That text isn\'t valid backup data — make sure you pasted the whole thing.'); return; }
+    if (!data || (!data.rounds && !data.courses)) { showNotice('That backup doesn\'t contain any rounds or courses.'); return; }
+    if (data.rounds && data.rounds.length) rounds = data.rounds;
+    if (data.courses && data.courses.length) courses = data.courses;
+    Promise.all([save(), saveCourses()]).then(function () {
+      box.style.display = 'none'; box.value = '';
+      render();
+      showNotice('Restored ' + (data.rounds ? data.rounds.length : 0) + ' round(s) and ' + (data.courses ? data.courses.length : 0) + ' course(s).');
+    });
+  });
+
+  var resetArmed = false, resetTimer = null;
+  $('resetBtn').addEventListener('click', function () {
+    var btn = this;
+    if (!resetArmed) {
+      resetArmed = true;
+      btn.textContent = 'Tap again to confirm — deletes everything';
+      btn.style.color = 'var(--red)'; btn.style.borderColor = 'var(--red)';
+      if (resetTimer) clearTimeout(resetTimer);
+      resetTimer = setTimeout(function () {
+        resetArmed = false; btn.textContent = 'Clear all rounds';
+        btn.style.color = ''; btn.style.borderColor = '';
+      }, 4000);
+      return;
+    }
+    resetArmed = false; clearTimeout(resetTimer);
+    btn.textContent = 'Clear all rounds'; btn.style.color = ''; btn.style.borderColor = '';
+    rounds = []; save().then(render);
+  });
+
+  var dashShown = false;
+  function showDashboard() {
+    $('loading').style.display = 'none'; $('dash').style.display = 'block';
+    dashShown = true;
+    render();
+  }
+  try {
+    load().then(showDashboard).catch(function (e) {
+      console.error(e);
+      if (!dashShown) { if (!rounds.length) rounds = SEED.slice(); if (!courses.length) courses = COURSE_SEED.slice(); showDashboard(); }
+    });
+  } catch (e) { console.error(e); if (!dashShown) { rounds = SEED.slice(); courses = COURSE_SEED.slice(); showDashboard(); } }
+  /* Safety net: if storage hasn't answered within 4s, show something rather than stay stuck —
+     but this is a TEMPORARY placeholder only. If the real load() is just slow and finishes after
+     this fires, its .then(showDashboard) above will still run and re-render with the real data.
+     Never gate that later success behind a "did we already boot" flag, or slow-but-working
+     storage silently loses whatever it was about to load. */
+  setTimeout(function () {
+    if (!dashShown) {
+      if (!rounds.length) rounds = SEED.slice();
+      if (!courses.length) courses = COURSE_SEED.slice();
+      showDashboard();
+    }
+  }, 4000);
+})();
+</script>
+</body>
+</html>
